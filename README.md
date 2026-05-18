@@ -549,6 +549,16 @@ result = ar.pipeline(frame, [
 
 Useful for data auditing — inspect what's missing before deciding how to fill or drop.
 
+### Boolean string normalization
+
+```python
+clean = ar.parse_bool_strings(frame)
+```
+
+This normalizes values such as `"yes"`, `"no"`, `"true"`, `"false"`, `"y"`, `"n"`, `"1"`, and `"0"` into boolean values while preserving unsupported values unchanged.
+
+Columns containing both parsed boolean values and unsupported string values may round-trip as strings because of ArFrame column typing semantics.
+
 <br>
 ### 🔢 Safe column division
 
