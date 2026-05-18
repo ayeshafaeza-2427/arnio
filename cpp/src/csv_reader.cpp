@@ -74,6 +74,74 @@ void validate_header(const std::vector<std::string>& header) {
         }
     }
 }
+
+static bool has_valid_thousands_grouping(const std::string& value, char separator) {
+    std::string integer_part = value;
+
+    // Ignore decimal portion
+    size_t decimal_pos = value.find('.');
+    if (decimal_pos != std::string::npos) {
+        integer_part = value.substr(0, decimal_pos);
+    }
+
+    // Remove optional sign before grouping validation
+    if (!integer_part.empty() && (integer_part[0] == '-' || integer_part[0] == '+')) {
+        integer_part = integer_part.substr(1);
+    }
+
+    std::vector<std::string> groups;
+    size_t start = 0;
+
+    while (true) {
+        size_t pos = integer_part.find(separator, start);
+
+        if (pos == std::string::npos) {
+            groups.push_back(integer_part.substr(start));
+            break;
+        }
+
+        groups.push_back(integer_part.substr(start, pos - start));
+        start = pos + 1;
+    }
+
+    // No empty groups allowed
+    for (const auto& group : groups) {
+        if (group.empty()) {
+            return false;
+        }
+        if (!std::all_of(group.begin(), group.end(),
+                         [](unsigned char ch) { return std::isdigit(ch); })) {
+            return false;
+        }
+    }
+
+    // First group: 1-3 digits
+    if (groups[0].size() < 1 || groups[0].size() > 3) {
+        return false;
+    }
+
+    // Remaining groups: exactly 3 digits
+    for (size_t i = 1; i < groups.size(); ++i) {
+        if (groups[i].size() != 3) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+std::string normalize_numeric(const std::string& value, const CsvConfig& config) {
+    std::string s = value;
+    trim_in_place(s);
+    if (config.thousands_separator.has_value()) {
+        char sep = config.thousands_separator.value();
+        if (has_valid_thousands_grouping(s, sep)) {
+            s.erase(std::remove(s.begin(), s.end(), sep), s.end());
+        }
+    }
+    return s;
+}
+
 }  // namespace
 
 CsvReader::CsvReader(const CsvConfig& config) : config_(config) {}
@@ -113,7 +181,7 @@ std::vector<std::string> CsvReader::parse_line(const std::string& line) const {
     return fields;
 }
 
-DType CsvReader::infer_type(const std::string& value) {
+DType CsvReader::infer_type(const std::string& value) const {
     if (value.empty()) return DType::NULL_TYPE;
 
     // Try bool
@@ -121,9 +189,11 @@ DType CsvReader::infer_type(const std::string& value) {
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
     if (lower == "true" || lower == "false") return DType::BOOL;
 
+    std::string cleaned = normalize_numeric(value, config_);
+
     // Try int64
     {
-        const char* start = value.c_str();
+        const char* start = cleaned.c_str();
         char* end = nullptr;
         long long val = std::strtoll(start, &end, 10);
         (void)val;
@@ -132,11 +202,28 @@ DType CsvReader::infer_type(const std::string& value) {
 
     // Try float64
     {
-        const char* start = value.c_str();
+        const char* start = cleaned.c_str();
         char* end = nullptr;
         double val = std::strtod(start, &end);
         (void)val;
         if (end != start && *end == '\0') return DType::FLOAT64;
+    }
+
+    // If thousands separator is set and value contains it but failed
+    // grouping validation, it's a malformed numeric — treat as NULL_TYPE
+    // so it doesn't poison the whole column's dtype to STRING.
+    if (config_.thousands_separator.has_value()) {
+        char sep = config_.thousands_separator.value();
+        if (value.find(sep) != std::string::npos && !has_valid_thousands_grouping(value, sep)) {
+            std::string check = value;
+            trim_in_place(check);
+            if (!check.empty() && (check[0] == '-' || check[0] == '+')) check = check.substr(1);
+            bool looks_numeric =
+                !check.empty() && std::all_of(check.begin(), check.end(), [sep](char c) {
+                    return std::isdigit((unsigned char)c) || c == sep || c == '.';
+                });
+            if (looks_numeric) return DType::NULL_TYPE;
+        }
     }
 
     return DType::STRING;
@@ -157,7 +244,7 @@ DType CsvReader::promote_type(DType current, DType incoming) {
     return DType::STRING;
 }
 
-CellValue CsvReader::parse_value(const std::string& raw, DType dtype) {
+CellValue CsvReader::parse_value(const std::string& raw, DType dtype) const {
     if (raw.empty()) return std::monostate{};
 
     switch (dtype) {
@@ -168,14 +255,26 @@ CellValue CsvReader::parse_value(const std::string& raw, DType dtype) {
         }
         case DType::INT64: {
             try {
-                return static_cast<int64_t>(std::stoll(raw));
+                std::string cleaned = normalize_numeric(raw, config_);
+                size_t pos = 0;
+                long long value = std::stoll(cleaned, &pos);
+                if (pos != cleaned.size()) {
+                    return std::monostate{};
+                }
+                return static_cast<int64_t>(value);
             } catch (...) {
                 return std::monostate{};
             }
         }
         case DType::FLOAT64: {
             try {
-                return std::stod(raw);
+                std::string cleaned = normalize_numeric(raw, config_);
+                size_t pos = 0;
+                double value = std::stod(cleaned, &pos);
+                if (pos != cleaned.size()) {
+                    return std::monostate{};
+                }
+                return value;
             } catch (...) {
                 return std::monostate{};
             }
