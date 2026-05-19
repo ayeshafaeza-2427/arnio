@@ -515,6 +515,230 @@ def test_email_strict_validation_accepts_valid_emails(tmp_path):
     assert result.passed
 
 
+def test_phone_number_validation_passes():
+    import pandas as pd
+
+    schema = ar.Schema(
+        {
+            "phone": ar.PhoneNumber(),
+        }
+    )
+
+    df = pd.DataFrame(
+        {
+            "phone": [
+                "+1-555-123-4567",
+                "+1 (555) 123-4567",
+                "+91 9876543210",
+                "5551234567",
+            ]
+        }
+    )
+
+    frame = ar.from_pandas(df)
+    result = ar.validate(frame, schema)
+
+    assert result.passed
+
+
+def test_phone_number_validation_fails():
+    import pandas as pd
+
+    schema = ar.Schema(
+        {
+            "phone": ar.PhoneNumber(),
+        }
+    )
+
+    df = pd.DataFrame(
+        {
+            "phone": [
+                "abc123",
+                "12",
+                "++123456",
+                "phone-number",
+            ]
+        }
+    )
+
+    frame = ar.from_pandas(df)
+    result = ar.validate(frame, schema)
+
+    assert not result.passed
+
+
+def test_phone_number_nullable_true_accepts_nulls():
+    import pandas as pd
+
+    schema = ar.Schema(
+        {
+            "phone": ar.PhoneNumber(nullable=True),
+        }
+    )
+
+    df = pd.DataFrame(
+        {
+            "phone": [
+                "+1-555-123-4567",
+                None,
+                pd.NA,
+            ]
+        }
+    )
+
+    frame = ar.from_pandas(df)
+
+    result = ar.validate(frame, schema)
+
+    assert result.passed
+
+
+def test_phone_number_nullable_false_rejects_nulls():
+    import pandas as pd
+
+    schema = ar.Schema(
+        {
+            "phone": ar.PhoneNumber(nullable=False),
+        }
+    )
+
+    df = pd.DataFrame(
+        {
+            "phone": [
+                "+1-555-123-4567",
+                None,
+            ]
+        }
+    )
+
+    frame = ar.from_pandas(df)
+
+    result = ar.validate(frame, schema)
+
+    assert not result.passed
+
+    assert any(issue.rule == "nullable" for issue in result.issues)
+
+
+def test_phone_number_unique_constraint():
+    import pandas as pd
+
+    schema = ar.Schema(
+        {
+            "phone": ar.PhoneNumber(unique=True),
+        }
+    )
+
+    df = pd.DataFrame(
+        {
+            "phone": [
+                "555-123-4567",
+                "555-123-4567",
+            ]
+        }
+    )
+
+    frame = ar.from_pandas(df)
+
+    result = ar.validate(frame, schema)
+
+    assert not result.passed
+
+    assert any(issue.rule == "unique" for issue in result.issues)
+
+
+def test_phone_number_formatted_and_invalid_edge_cases():
+    import pandas as pd
+
+    schema = ar.Schema(
+        {
+            "phone": ar.PhoneNumber(),
+        }
+    )
+
+    df = pd.DataFrame(
+        {
+            "phone": [
+                "+1 (555) 123-4567",
+                "555-123-4567",
+                "++1-555-123-4567",
+                "123",
+            ]
+        }
+    )
+
+    frame = ar.from_pandas(df)
+
+    result = ar.validate(frame, schema)
+
+    assert not result.passed
+
+    invalid_values = {issue.value for issue in result.issues}
+
+    assert "++1-555-123-4567" in invalid_values
+    assert "123" in invalid_values
+
+
+def test_phone_number_mixed_object_column_behavior():
+    import pandas as pd
+
+    schema = ar.Schema(
+        {
+            "phone": ar.PhoneNumber(nullable=True),
+        }
+    )
+
+    df = pd.DataFrame(
+        {
+            "phone": [
+                "+1-555-123-4567",
+                1234567890,
+                True,
+                None,
+                "invalid",
+            ]
+        },
+        dtype=object,
+    )
+
+    frame = ar.from_pandas(df)
+
+    result = ar.validate(frame, schema)
+
+    assert not result.passed
+
+    invalid_values = {str(issue.value) for issue in result.issues}
+
+    assert "True" in invalid_values
+    assert "invalid" in invalid_values
+
+
+def test_phone_number_warning_severity_does_not_fail_validation():
+    import pandas as pd
+
+    schema = ar.Schema(
+        {
+            "phone": ar.PhoneNumber(severity="warning"),
+        }
+    )
+
+    df = pd.DataFrame(
+        {
+            "phone": ["invalid-phone"],
+        }
+    )
+
+    frame = ar.from_pandas(df)
+
+    result = ar.validate(frame, schema)
+
+    assert result.passed
+
+    assert result.issue_count == 1
+
+    assert result.issues[0].severity == "warning"
+
+
 def test_country_code_validation_accepts_iso_alpha_2_codes(tmp_path):
     path = tmp_path / "countries.csv"
     path.write_text("country\nIN\nUS\nGB\nFR\n")

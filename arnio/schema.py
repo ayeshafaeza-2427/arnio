@@ -733,6 +733,24 @@ def URL(
     )
 
 
+def PhoneNumber(
+    *,
+    nullable: bool = True,
+    unique: bool = False,
+    severity: str = "error",
+    required_if: tuple[str, Any] | None = None,
+) -> Field:
+    """Create a phone-number schema field."""
+    return Field(
+        dtype="string",
+        nullable=nullable,
+        semantic="phone",
+        unique=unique,
+        required_if=required_if,
+        severity=severity,
+    )
+
+
 def CountryCode(
     *,
     nullable: bool = True,
