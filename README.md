@@ -50,12 +50,17 @@ pip install arnio
 ## ⚡ Quickstart
 
 Three lines. That's the entire workflow.
+If you're new to Arnio, the example below demonstrates a simple first-run workflow for loading, cleaning, and preparing CSV data before converting it back into a pandas DataFrame.
 
 ```python
 import arnio as ar
 
 # Load CSV directly through C++ — no Python parsing overhead
+
+The workflow starts by loading a CSV dataset into an Arnio frame for preprocessing and cleaning.
 frame = ar.read_csv("messy_sales_data.csv")
+
+Each pipeline step applies a specific transformation such as trimming whitespace, normalizing text formatting, handling missing values, and removing duplicate rows.
 
 # Declare what clean data looks like — arnio handles the rest
 clean = ar.pipeline(frame, [
@@ -65,13 +70,15 @@ clean = ar.pipeline(frame, [
     ("drop_nulls",),
     ("drop_duplicates",),
 ])
+```
 
+After preprocessing is complete, the cleaned result can be converted back into a standard pandas DataFrame for further analysis or integration with existing workflows.
+
+```python
 # Out comes a standard pandas DataFrame — use it like you always have
 df = ar.to_pandas(clean)
 ```
-
-Already have a pandas `DataFrame`? Use Arnio in-place in your existing pandas
-workflow:
+Already working with a pandas `DataFrame`? Arnio can also be integrated directly into an existing pandas workflow without changing your current data-processing approach:
 
 ```python
 import pandas as pd
