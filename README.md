@@ -80,6 +80,8 @@ safe_df = ar.to_pandas(clean, copy=True)
 Need step timings for debugging? Opt in without changing the default pipeline return type:
 
 ```python
+import arnio as ar
+frame = ar.read_csv("messy_sales_data.csv")
 clean, metadata = ar.pipeline(
     frame,
     [("strip_whitespace",), ("drop_duplicates",)],
@@ -95,6 +97,8 @@ Pipeline step specifications are validated before execution begins.
 Malformed step tuples, invalid kwargs structures, or unknown step names fail early before any pipeline steps execute.
 
 ```python
+import arnio as ar
+frame = ar.read_csv("messy_sales_data.csv") 
 ar.pipeline(
     frame,
     [
