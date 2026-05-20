@@ -229,12 +229,16 @@ Example contract files are included under `examples/contracts/`.
 Use `select_columns()` to create a new `ArFrame` with only the required columns before converting to pandas.
 
 ```python
-selected = frame.select_columns(["name", "revenue"])
+selected = ar.select_columns(frame, ["name", "revenue"])
 
 print(selected.columns)
 # ['name', 'revenue']
 ```
 
+- Preserves the requested column order.
+- Returns a new `ArFrame`.
+- Raises `ValueError` if any requested column does not exist.
+- Raises `TypeError` if `columns` is not a sequence of strings.
 
 ### Handling missing values
 
@@ -856,6 +860,7 @@ Most operations below run natively in C++. Currently, `filter_rows`, `replace_va
 | `safe_divide_columns` | Divide one column by another, handling zero/null denominators | `ar.safe_divide_columns(frame, numerator="revenue", denominator="cost", output_column="ratio")` |
 | `drop_columns_matching` | Drop columns whose names match a regex pattern | `ar.drop_columns_matching(frame, pattern="^temp_")` |
 | `trim_column_names` | Strip leading/trailing whitespace from column names | `ar.trim_column_names(frame)` |
+| `select_columns` | Return a new frame containing only selected columns | `ar.select_columns(frame, ["id", "name"])` |
 
 #### `ArFrame.select_dtypes` — type-based column selection
 

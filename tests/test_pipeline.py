@@ -363,6 +363,55 @@ class TestPipeline:
                 [("drop_columns", {"columns": ["missing"]})],
             )
 
+    def test_pipeline_select_columns(self, sample_csv):
+        frame = ar.read_csv(sample_csv)
+
+        result = ar.pipeline(
+            frame,
+            [
+                ("select_columns", {"columns": ["email", "name"]}),
+            ],
+        )
+
+        assert result.columns == ["email", "name"]
+
+    def test_pipeline_select_columns_rejects_missing_columns(self, sample_csv):
+        import pytest
+
+        frame = ar.read_csv(sample_csv)
+
+        with pytest.raises(ValueError, match="Unknown columns"):
+            ar.pipeline(
+                frame,
+                [
+                    ("select_columns", {"columns": ["missing"]}),
+                ],
+            )
+
+    def test_pipeline_select_columns_reject_empty_columns(self, sample_csv):
+        frame = ar.read_csv(sample_csv)
+
+        with pytest.raises(ValueError, match="Column selection cannot be empty"):
+            ar.pipeline(
+                frame,
+                [
+                    ("select_columns", {"columns": []}),
+                ],
+            )
+
+    def test_pipeline_select_columns_rejects_duplicates(self, sample_csv):
+        import pytest
+
+        frame = ar.read_csv(sample_csv)
+
+        with pytest.raises(ValueError, match="Duplicate column names are not allowed"):
+            ar.pipeline(
+                frame,
+                [
+                    ("select_columns", {"columns": ["name", "name"]}),
+                ],
+            )
+
     def test_pipeline_validate_columns_exist_rejects_missing_columns(self, sample_csv):
         import pytest
 

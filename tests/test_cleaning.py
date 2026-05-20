@@ -2170,3 +2170,69 @@ def test_fill_nulls_validation_lossy_and_non_finite():
         ar.pipeline(
             float_frame, [("fill_nulls", {"value": float("inf"), "subset": ["x"]})]
         )
+
+
+class TestSelectColumns:
+    def test_select_columns_keeps_requested_columns_and_preserves_order(self):
+        frame = ar.from_pandas(
+            pd.DataFrame(
+                {
+                    "id": [1, 2],
+                    "debug": ["x", "y"],
+                    "name": ["Alice", "Bob"],
+                    "flag": [True, False],
+                }
+            )
+        )
+
+        result = ar.select_columns(frame, ["name", "id"])
+        df = ar.to_pandas(result)
+
+        assert list(df.columns) == ["name", "id"]
+        assert list(df["name"]) == ["Alice", "Bob"]
+
+    def test_select_columns_rejects_missing_columns(self, sample_csv):
+        frame = ar.read_csv(sample_csv)
+
+        with pytest.raises(ValueError, match="Unknown columns"):
+            ar.select_columns(frame, ["missing"])
+
+    def test_select_columns_rejects_string_input(self, sample_csv):
+        frame = ar.read_csv(sample_csv)
+
+        with pytest.raises(
+            TypeError, match="columns must be a sequence of column names, not a string"
+        ):
+            ar.select_columns(frame, "age")
+
+    def test_select_columns_rejects_non_string_items(self, sample_csv):
+        frame = ar.read_csv(sample_csv)
+
+        with pytest.raises(TypeError, match="All column names must be strings"):
+            ar.select_columns(frame, ["age", 1])
+
+    def test_select_columns_rejects_empty(self):
+        frame = ar.from_pandas(
+            pd.DataFrame(
+                {
+                    "id": [1, 2],
+                    "name": ["Alice", "Bob"],
+                }
+            )
+        )
+
+        with pytest.raises(ValueError, match="Column selection cannot be empty"):
+            ar.select_columns(frame, [])
+
+    def test_select_columns_rejects_duplicates(self):
+        frame = ar.from_pandas(
+            pd.DataFrame(
+                {
+                    "id": [1, 2],
+                    "name": ["Alice", "Bob"],
+                }
+            )
+        )
+
+        with pytest.raises(ValueError):
+            ar.select_columns(frame, ["id", "id"])

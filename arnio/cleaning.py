@@ -260,6 +260,11 @@ def keep_rows_with_nulls(
     return from_pandas(result) if is_arframe else result
 
 
+def select_columns(frame: ArFrame, columns: Sequence[str]) -> ArFrame:
+    """Return a new frame containing only the requested columns."""
+    return frame.select_columns(columns)
+
+
 def fill_nulls(
     frame: ArFrame,
     value: Any,
