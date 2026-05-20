@@ -78,6 +78,26 @@ class TestWriteCsv:
         with pytest.raises(ValueError, match="delimiter must be a single character"):
             ar.write_csv(frame, str(tmp_path / "out.csv"), delimiter=",,")
 
+    def test_non_string_delimiter_rejected(self, tmp_path):
+        frame = ar.from_pandas(pd.DataFrame({"a": [1]}))
+        with pytest.raises(TypeError, match="delimiter must be a string"):
+            ar.write_csv(frame, str(tmp_path / "out.csv"), delimiter=1)
+
+    @pytest.mark.parametrize("delimiter", ["\n", "\r"])
+    def test_newline_delimiters_rejected(self, tmp_path, delimiter):
+        frame = ar.from_pandas(pd.DataFrame({"a": [1]}))
+        with pytest.raises(
+            ValueError, match="delimiter must not be a newline character"
+        ):
+            ar.write_csv(frame, str(tmp_path / "out.csv"), delimiter=delimiter)
+
+    def test_quote_character_delimiter_rejected(self, tmp_path):
+        frame = ar.from_pandas(pd.DataFrame({"a": [1]}))
+        with pytest.raises(
+            ValueError, match="delimiter must not be the CSV quote character"
+        ):
+            ar.write_csv(frame, str(tmp_path / "out.csv"), delimiter='"')
+
 
 class TestWriteCsvLineTerminatorBytes:
     """Raw-byte regression tests for line_terminator.
@@ -115,6 +135,16 @@ class TestWriteCsvLineTerminatorBytes:
         ar.write_csv(frame, out, line_terminator="|")
         raw = out.read_bytes()
         assert raw == b"x|7|"
+
+    def test_empty_line_terminator_rejected(self, tmp_path):
+        frame = ar.from_pandas(pd.DataFrame({"a": [1, 2]}))
+        with pytest.raises(ValueError, match="line_terminator must not be empty"):
+            ar.write_csv(frame, tmp_path / "out.csv", line_terminator="")
+
+    def test_non_string_line_terminator_rejected(self, tmp_path):
+        frame = ar.from_pandas(pd.DataFrame({"a": [1, 2]}))
+        with pytest.raises(TypeError, match="line_terminator must be a string"):
+            ar.write_csv(frame, tmp_path / "out.csv", line_terminator=None)
 
     def test_quoted_multiline_field_round_trips(self, tmp_path):
         # A field containing an embedded newline must be quoted and survive a
