@@ -77,6 +77,21 @@ df = ar.to_pandas(clean)
 safe_df = ar.to_pandas(clean, copy=True)
 ```
 
+### Dry Run Validation
+
+Use `dry_run=True` to validate pipeline configuration and
+step execution without returning transformed output.
+
+```python
+ar.pipeline(
+    frame,
+    [
+        ("drop_nulls",),
+    ],
+    dry_run=True,
+)
+```
+
 Need step timings for debugging? Opt in without changing the default pipeline return type:
 
 ```python
@@ -90,6 +105,17 @@ clean, metadata = ar.pipeline(
 
 print(metadata["step_timings"])
 ```
+## Quick Example
+
+```python
+import arnio
+
+frame = arnio.read_csv("sample.csv")
+
+# Preview first 5 rows
+frame.preview(5)
+```
+
 ### Pipeline validation behavior
 
 Pipeline step specifications are validated before execution begins.
